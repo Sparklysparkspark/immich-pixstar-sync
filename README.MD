@@ -40,6 +40,15 @@ Immich → Pix-Star Favorites Sync:
 All sensitive configuration lives in **your own PRIVATE repo** or on your own NAS, so you never put API keys or emails in a public repository or Docker image.
 
 ---
+📚 Large shared libraries & Immich Linked Assets
+
+If you’re managing a **large shared Immich library** (e.g., big families or multi-household setups), this service works especially well when combined with **[Immich Linked Assets]([GitHub - TrueDevanon/immich-linked-assets](https://github.com/TrueDevanon/immich-linked-assets))**:
+
+- **Immich Linked Assets** handles the heavy lifting of **sharing and cloning assets across users** (via tags, albums, and people metadata) so everyone sees the same core photo library in their own account.
+  
+- **Immich → Pix-Star Favorites Sync** then sits on top and simply watches **each user’s favorites** and pushes them to **that user’s Pix-Star frame(s)**.
+  
+---
 
 ## 🧩 How It Works
 
