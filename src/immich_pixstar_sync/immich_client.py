@@ -46,36 +46,61 @@ class ImmichClient:
                 return u
         return None
 
-
-
     # ---------- favorites ----------
 
-    def get_favorites(self) -> List[Dict[str, Any]]:
+    def get_favorites(
+        self,
+        page_size: int = 250,
+        max_pages: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
         """
-        Returns a list of favorite assets for *this API key's user*.
-
-        Uses /api/search/metadata with isFavorite=true.
-        We do NOT send userId; Immich infers the user from the token.
+        Return ALL favorite assets for this user, walking pages of `page_size`.
         """
         url = f"{self.base_url}/search/metadata"
-        payload: Dict[str, Any] = {
-            "isFavorite": True,
-            "order": "desc",
-            "orderBy": "fileCreatedAt",
-            "size": 250,
-        }
+        all_items: List[Dict[str, Any]] = []
+        page = 1
 
-        resp = self.session.post(url, json=payload, timeout=60)
-        resp.raise_for_status()
-        data = resp.json()
+        while True:
+            payload: Dict[str, Any] = {
+                "isFavorite": True,
+                "order": "desc",
+                "orderBy": "fileCreatedAt",
+                "size": page_size,
+                "page": page,
+            }
 
-        # Shape: {"albums": {...}, "assets": {"items": [...], ...}}
-        if isinstance(data, dict) and "assets" in data:
+            resp = self.session.post(url, json=payload, timeout=60)
+            resp.raise_for_status()
+            try:
+                data = resp.json()
+            except Exception as exc:  # noqa: BLE001
+                snippet = resp.text[:200].replace("\n", " ").strip()
+                raise RuntimeError(
+                    f"Immich /search/metadata returned non-JSON "
+                    f"(status={resp.status_code}, content-type={resp.headers.get('content-type')}, "
+                    f"body_prefix={snippet!r})"
+                ) from exc
+
+            if not (isinstance(data, dict) and "assets" in data):
+                raise RuntimeError(f"Unexpected response from /search/metadata: {type(data)}")
+
+
             assets = data["assets"]
-            if isinstance(assets, dict) and "items" in assets:
-                return assets["items"]
+            items = assets.get("items") or []
+            if not items:
+                break  # no more pages
 
-        raise RuntimeError(f"Unexpected response from /search/metadata: {type(data)}")
+            all_items.extend(items)
+
+            # If the last page had fewer than page_size items, we're done
+            if len(items) < page_size:
+                break
+
+            page += 1
+            if max_pages is not None and page > max_pages:
+                break
+
+        return all_items
 
     # ---------- download ----------
 
