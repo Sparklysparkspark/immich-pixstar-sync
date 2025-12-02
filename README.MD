@@ -152,6 +152,31 @@ Once `.env` and `pixstar_mapping.json` are configured, **commit and push** them 
 
 ---
 
+### 2.3 Required Immich API permissions
+
+The Immich API keys used by this service need specific permissions so it can see favorites, download photos, and look up users.
+
+For the **admin-level API key** in `IMMICH_API_KEY` (from `.env`), make sure it has at least:
+
+* `asset.read`
+* `asset.download`
+* `user.read`
+
+Why these are needed:
+
+* `asset.read` – lets the service see which assets exist and which ones are marked as favorites.
+* `asset.download` – lets the service download the image data to attach to emails sent to Pix-Star.
+* `user.read` – lets the service look up Immich users and match them to entries in `pixstar_mapping.json`.
+
+For each **per-user API key** in `pixstar_mapping.json` (`immichApiKey`), grant at least:
+
+* `asset.read`
+* `asset.download`
+
+These per-user keys are only used to read and download that user’s favorites. Giving them `user.read` as well is optional but harmless.
+
+---
+
 ## 🖥️ Install & Run on Your NAS
 
 These steps are done **on the NAS** where Immich can be reached.
