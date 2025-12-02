@@ -1,0 +1,19 @@
+{
+    "defaultPixstarEmails": [],
+    
+    "accounts": [
+        {
+            "immichUser": "john.doe@example.com",
+            "immichApiKey": "YourApiKeyHere",
+            "pixstarEmails": ["john-frame@mypixstar.com"]
+        },
+        {
+            "immichUser": "jane.doe@example.com",
+            "immichApiKey": "YourApiKeyHere",
+            "pixstarEmails": [
+                "jane-frame@mypixstar.com",
+                "jane-frame2@mypixstar.com"
+            ]
+        }
+    ]
+}
