@@ -1,49 +1,80 @@
 # Immich → Pix-Star Favorites Sync
 
-This service watches your Immich favorites and emails new ones to Pix-Star frames.
+A lightweight Python service that watches your **Immich favorites** and automatically emails new ones to your **Pix-Star digital frames**.
 
 Each Immich user has:
 
-- Their own Immich API key
-  
-- Their own Pix-Star frame email(s)
-  
+* Their **own Immich user API key**
+* Their **own Pix-Star frame email(s)**
 
-So favorites stay per-user: what John likes goes to John’s frame, what Jane likes goes to Jane’s frames, etc.
-
-Once installed on your NAS, it runs in the background and keeps frames updated.
+So favorites stay per-user: what John likes goes to John’s frame(s), what Jane likes goes to Jane’s frame(s), etc. Once installed on your NAS, it runs in the background and keeps frames updated.
 
 ---
 
-## 1. Set up your private repo (on your computer)
+### ✅ Tested Immich version: **v2.3.1**
 
-> **Important:** Never put API keys or emails in a public repo.
+---
 
-### 1.1 Create a PRIVATE repo from this project
+## 🚀 Overview
 
-- On your Git host (GitHub, Gitea, etc.), create a **new PRIVATE repository**.
-  
-- Either:
-  
-  - Use **“Use this template”** (if available), or
-    
-  - Clone this project locally and push it to your new private repo.
-    
+Immich → Pix-Star Favorites Sync:
 
-From now on, you only work with **your private repo**.
+* Polls Immich for each user’s **favorite photos**
+* Tracks what’s already been sent using a small local state file
+* Emails new favorites to that user’s **Pix-Star frame email(s)** via SMTP
 
-### 1.2 Edit the configuration files in your private repo
+All configuration lives in **your own PRIVATE repo**, so you never put API keys or emails in a public repository.
+
+---
+
+## 🧩 How It Works
+
+1. You configure:
+
+   * A global `.env` file (Immich base URL, admin API key, SMTP settings)
+   * A `pixstar_mapping.json` file mapping Immich users → Immich user API keys → Pix-Star frame emails
+
+2. On your NAS, the service:
+
+   * Uses the **admin API key** from `.env` to discover users
+   * Uses each user’s **own API key** to fetch their favorites
+   * Sends **new** favorites (since the last run) to that user’s Pix-Star frame email(s)
+   * Stores sync state in `pixstar_sync_state.json` so it doesn’t resend everything every time
+
+You control how often it checks for new favorites using `POLL_INTERVAL_SECONDS`.
+
+---
+
+## ⚙️ Setup (on your computer first)
+
+> 💡 **Important:** Configure your repo **locally** and keep it **PRIVATE** before cloning it onto your NAS.
+
+### 1️⃣ Create a PRIVATE repo from this project
+
+On your Git host (GitHub, Gitea, etc.):
+
+1. Create a **new PRIVATE repository**.
+2. Either:
+
+   * Use **“Use this template”** (if available), or
+   * Clone this project locally and push it into your new **PRIVATE** repo.
+
+From this point on, you only work with **your private copy**.
+
+---
+
+### 2️⃣ Edit configuration files in your private repo
 
 You only need to edit:
 
-- `.env`
-  
-- `pixstar_mapping.json`
-  
+* `.env`
+* `pixstar_mapping.json`
+
+Commit these changes to your private repo **before** cloning it onto your NAS.
 
 ---
 
-### 1.3 `.env`
+### 2.1 `.env`
 
 Create or edit `.env` in the root of your private repo:
 
@@ -64,30 +95,24 @@ STATE_PATH=pixstar_sync_state.json
 
 **Notes:**
 
-- `IMMICH_BASE_URL` **must end with `/api`**, for example:  
+* `IMMICH_BASE_URL` **must end with `/api`**, for example:
   `http://192.168.1.50:2283/api` or `https://photos.example.com/api`
-  
-- `IMMICH_API_KEY` should be an admin-level Immich API key that can list users.
-  
-- `SMTP_*` is the email account that will **send photos to Pix-Star** (often a Gmail with an app password).
-  
-- `POLL_INTERVAL_SECONDS` = how often to check for new favorites (300 = 5 minutes).
-  
-- Most people can leave `PIXSTAR_MAPPING_PATH` and `STATE_PATH` as-is.
-  
+* `IMMICH_API_KEY` should be an **admin-level** Immich API key that can list users.
+* `SMTP_*` describes the email account that will **send photos to Pix-Star**
+  (for example, a Gmail account using an app password).
+* `POLL_INTERVAL_SECONDS` controls how often to check for new favorites
+  (300 seconds = every 5 minutes).
+* Most people can leave `PIXSTAR_MAPPING_PATH` and `STATE_PATH` as-is.
 
 ---
 
-### 1.4 `pixstar_mapping.json`
+### 2.2 `pixstar_mapping.json`
 
 This file maps each Immich user to:
 
-- Their Immich login email
-  
-- Their own Immich user API key
-  
-- One or more Pix-Star frame email addresses
-  
+* Their Immich login email
+* Their **own** Immich user API key
+* One or more Pix-Star frame email addresses
 
 Example:
 
@@ -114,29 +139,24 @@ Example:
 
 **Fields:**
 
-- `immichUser` – Immich user email (must exactly match the Immich account).
-  
-- `immichApiKey` – API key created **under that user’s Immich account**.  
+* `immichUser` – Immich user email (must exactly match the Immich account).
+* `immichApiKey` – API key created **under that user’s Immich account**.
   This is how the script knows whose favorites to read.
-  
-- `pixstarEmails` – One or more Pix-Star frame addresses for that user’s favorites.
-  
-- `defaultPixstarEmails` (optional) – Global default list; can usually stay as `[]`.  
-  If a user has no `pixstarEmails` defined, their favorites will be sent to all emails in this list.  
-  This is useful if you want users **without their own mapping** to have their favorites sent to a shared set of frames.
-  
-  - If you leave `pixstarEmails` empty for all users and only use `defaultPixstarEmails`, then **all users’ favorites** will go to **all addresses** in `defaultPixstarEmails`.
+* `pixstarEmails` – One or more Pix-Star frame addresses for that user.
+* `defaultPixstarEmails` (optional):
 
-Commit your updated `.env` and `pixstar_mapping.json` to your **private repo**.  
-You’re now ready to move to the NAS.
+  * A global list of Pix-Star emails used when a user has no `pixstarEmails` set.
+  * If all `pixstarEmails` are empty and only `defaultPixstarEmails` is used, then **all users’ favorites** go to **all addresses** in `defaultPixstarEmails`.
+
+Once `.env` and `pixstar_mapping.json` are configured, **commit and push** them to your private repo. You’re ready to move to the NAS.
 
 ---
 
-## 2. On your NAS: clone, install, and run
+## 🖥️ Install & Run on Your NAS
 
-These steps happen once per NAS (except `run.sh` / `stop.sh`).
+These steps are done **on the NAS** where Immich can be reached.
 
-### 2.1 Clone your private repo onto the NAS
+### 3️⃣ Clone your private repo onto the NAS
 
 ```bash
 cd /opt
@@ -144,9 +164,11 @@ git clone https://your-git-host/your-user/immich-pixstar-sync.git
 cd immich-pixstar-sync
 ```
 
-Your edited `.env` and `pixstar_mapping.json` come along from your private repo.
+Your edited `.env` and `pixstar_mapping.json` will come along from your private repo.
 
-### 2.2 Create a virtual environment & install dependencies (first time only)
+---
+
+### 4️⃣ Create a virtual environment & install dependencies (first time only)
 
 ```bash
 cd /opt/immich-pixstar-sync
@@ -157,7 +179,9 @@ pip install -r requirements.txt
 
 You only need to repeat this if you ever rebuild the Python environment.
 
-### 2.3 Start the sync service with `run.sh`
+---
+
+### 5️⃣ Start the sync service with `run.sh`
 
 From the project directory:
 
@@ -168,18 +192,14 @@ cd /opt/immich-pixstar-sync
 
 `run.sh`:
 
-- Activates the virtualenv
-  
-- Starts `python main.py` in the background
-  
-- Writes logs to `immich-pixstar.log`
-  
-- Saves the process ID in `immich-pixstar.pid`
-  
+* Activates the virtual environment
+* Starts `python main.py` in the background
+* Writes logs to `immich-pixstar.log`
+* Saves the process ID in `immich-pixstar.pid`
 
-The service keeps running after you log out or close SSH.
+The service keeps running even after you log out of SSH.
 
-To check what it’s doing:
+To watch the logs:
 
 ```bash
 tail -f immich-pixstar.log
@@ -187,7 +207,7 @@ tail -f immich-pixstar.log
 
 ---
 
-## 3. Stopping the service with `stop.sh`
+## ⏹ Stopping the Service with `stop.sh`
 
 To stop the background sync:
 
@@ -198,74 +218,72 @@ cd /opt/immich-pixstar-sync
 
 `stop.sh`:
 
-- Reads the PID from `immich-pixstar.pid`
-  
-- Stops that process
-  
-- Cleans up the PID file
-  
+* Reads the PID from `immich-pixstar.pid`
+* Stops that process
+* Cleans up the PID file
 
-If it’s already stopped, you may see a harmless error; that’s fine.
+If the process is already stopped, you might see a small error or warning — that’s fine.
 
 ---
 
-## 4. Resend all favorites (after a frame reset)
+## 🔁 Resend All Favorites (e.g., after Pix-Star reset)
 
-If a Pix-Star frame is reset or its photomail folder is wiped, you can resend **all** favorites for one user or all users.
+If a Pix-Star frame is reset or its photomail folder is cleared, you can resend **all** favorites for a single user or for all users.
 
-**Typical flow:**
+### Example workflow
 
-1. Stop the background service:
-  
-  ```bash
-  cd /opt/immich-pixstar-sync
-  ./stop.sh
-  ```
-  
-2. Activate the virtualenv:
-  
-  ```bash
-  cd /opt/immich-pixstar-sync
-  source .venv/bin/activate
-  ```
-  
+1. **Stop** the background service:
+
+   ```bash
+   cd /opt/immich-pixstar-sync
+   ./stop.sh
+   ```
+
+2. **Activate** the virtual environment:
+
+   ```bash
+   cd /opt/immich-pixstar-sync
+   source .venv/bin/activate
+   ```
+
 3. **Resend all favorites for one user:**
-  
-  ```bash
-  python main.py --resend-all --user john.doe@example.com
-  ```
-  
-4. **Resend all favorites for all users:**
-  
-  ```bash
-  python main.py --resend-all --all-users
-  ```
-  
-5. Start the background sync again:
-  
-  ```bash
-  ./run.sh
-  ```
-  
 
-After that, the service goes back to “new favorites only” behavior.
+   ```bash
+   python main.py --resend-all --user john.doe@example.com
+   ```
+
+4. **Resend all favorites for all users:**
+
+   ```bash
+   python main.py --resend-all --all-users
+   ```
+
+5. **Start** the background sync again:
+
+   ```bash
+   ./run.sh
+   ```
+
+After this, the service goes back to only sending **new** favorites as they appear.
 
 ---
 
-## 5. Normal day-to-day usage
+## 📆 Day-to-Day Usage
 
-After initial setup:
+After the initial install:
 
-- **After a reboot or NAS update:**
-  
+* **After NAS reboot or updates:**
+
   ```bash
   cd /opt/immich-pixstar-sync
   ./run.sh
   ```
-  
-- **To stop the service:**
-  
+
+* **To stop the service:**
+
   ```bash
   cd /opt/immich-pixstar-sync
   ./stop.sh
   ```
+
+As long as `run.sh` is running and your SMTP + Immich config is valid, new favorites will keep flowing automatically from Immich to your Pix-Star frames.
