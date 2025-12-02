@@ -7,11 +7,25 @@ Each Immich user has:
 * Their **own Immich user API key**
 * Their **own Pix-Star frame email(s)**
 
-So favorites stay per-user: what John likes goes to John’s frame(s), what Jane likes goes to Jane’s frame(s), etc. Once installed on your NAS, it runs in the background and keeps frames updated.
+So favorites stay per-user: what John likes goes to John’s frame(s), what Jane likes goes to Jane’s frame(s), etc. Once installed on your NAS (or in a container), it runs in the background and keeps frames updated.
 
 ---
 
 ### ✅ Tested Immich version: **v2.3.1**
+
+---
+
+## 🔧 Installation Modes
+
+You can run this service in two main ways:
+
+1. **Standard Linux / “normal” NAS (recommended if you can run Python + venv)**
+   Clone your **private repo**, create a Python virtualenv, run `./run.sh`.
+
+2. **TrueNAS SCALE / Docker (no Python on host)**
+   Use the pre-built Docker image (or build your own) and mount a config directory that contains `.env` and `pixstar_mapping.json`.
+
+The configuration files are the same in both cases.
 
 ---
 
@@ -23,7 +37,7 @@ Immich → Pix-Star Favorites Sync:
 * Tracks what’s already been sent using a small local state file
 * Emails new favorites to that user’s **Pix-Star frame email(s)** via SMTP
 
-All configuration lives in **your own PRIVATE repo**, so you never put API keys or emails in a public repository.
+All sensitive configuration lives in **your own PRIVATE repo** or on your own NAS, so you never put API keys or emails in a public repository or Docker image.
 
 ---
 
@@ -34,7 +48,7 @@ All configuration lives in **your own PRIVATE repo**, so you never put API keys 
    * A global `.env` file (Immich base URL, admin API key, SMTP settings)
    * A `pixstar_mapping.json` file mapping Immich users → Immich user API keys → Pix-Star frame emails
 
-2. On your NAS, the service:
+2. The service:
 
    * Uses the **admin API key** from `.env` to discover users
    * Uses each user’s **own API key** to fetch their favorites
@@ -45,9 +59,9 @@ You control how often it checks for new favorites using `POLL_INTERVAL_SECONDS`.
 
 ---
 
-## ⚙️ Setup (on your computer first)
+## ⚙️ Configure Your Private Repo (do this first)
 
-> 💡 **Important:** Configure your repo **locally** and keep it **PRIVATE** before cloning it onto your NAS.
+> 💡 **Important:** Configure your repo **locally** and keep it **PRIVATE** before cloning it onto your NAS or using it to build a Docker image.
 
 ### 1️⃣ Create a PRIVATE repo from this project
 
@@ -70,7 +84,7 @@ You only need to edit:
 * `.env`
 * `pixstar_mapping.json`
 
-Commit these changes to your private repo **before** cloning it onto your NAS.
+Commit these changes to your private repo **before** cloning it onto your NAS or using Docker.
 
 ---
 
@@ -143,12 +157,13 @@ Example:
 * `immichApiKey` – API key created **under that user’s Immich account**.
   This is how the script knows whose favorites to read.
 * `pixstarEmails` – One or more Pix-Star frame addresses for that user.
-* `defaultPixstarEmails` (optional):
+* `defaultPixstarEmails` (optional) – Global default list; can usually stay as `[]`.
+  If a user has no `pixstarEmails` defined, their favorites will be sent to all emails in this list.
+  This is useful if you want users **without their own mapping** to have their favorites sent to a shared set of frames.
 
-  * A global list of Pix-Star emails used when a user has no `pixstarEmails` set.
-  * If all `pixstarEmails` are empty and only `defaultPixstarEmails` is used, then **all users’ favorites** go to **all addresses** in `defaultPixstarEmails`.
+  * If you leave `pixstarEmails` empty for all users and only use `defaultPixstarEmails`, then **all users’ favorites** will go to **all addresses** in `defaultPixstarEmails`.
 
-Once `.env` and `pixstar_mapping.json` are configured, **commit and push** them to your private repo. You’re ready to move to the NAS.
+Once `.env` and `pixstar_mapping.json` are configured, **commit and push** them to your private repo.
 
 ---
 
@@ -162,24 +177,18 @@ For the **admin-level API key** in `IMMICH_API_KEY` (from `.env`), make sure it 
 * `asset.download`
 * `user.read`
 
-Why these are needed:
-
-* `asset.read` – lets the service see which assets exist and which ones are marked as favorites.
-* `asset.download` – lets the service download the image data to attach to emails sent to Pix-Star.
-* `user.read` – lets the service look up Immich users and match them to entries in `pixstar_mapping.json`.
-
 For each **per-user API key** in `pixstar_mapping.json` (`immichApiKey`), grant at least:
 
 * `asset.read`
 * `asset.download`
 
-These per-user keys are only used to read and download that user’s favorites. Giving them `user.read` as well is optional but harmless.
+These per-user keys are only used to read and download that user’s favorites.
 
 ---
 
-## 🖥️ Install & Run on Your NAS
+## 🖥️ Standard Install: Linux / “Normal” NAS (Python venv)
 
-These steps are done **on the NAS** where Immich can be reached.
+These steps are for environments where you can run `python3 -m venv` and `pip` (e.g., Ubuntu, Debian, most NAS boxes with Python installed).
 
 ### 3️⃣ Clone your private repo onto the NAS
 
@@ -232,7 +241,7 @@ tail -f immich-pixstar.log
 
 ---
 
-## ⏹ Stopping the Service with `stop.sh`
+### ⏹ Stopping the Service with `stop.sh`
 
 To stop the background sync:
 
@@ -251,11 +260,11 @@ If the process is already stopped, you might see a small error or warning — th
 
 ---
 
-## 🔁 Resend All Favorites (e.g., after Pix-Star reset)
+### 🔁 Resend All Favorites (e.g., after Pix-Star reset)
 
 If a Pix-Star frame is reset or its photomail folder is cleared, you can resend **all** favorites for a single user or for all users.
 
-### Example workflow
+**Example workflow:**
 
 1. **Stop** the background service:
 
@@ -293,7 +302,7 @@ After this, the service goes back to only sending **new** favorites as they appe
 
 ---
 
-## 📆 Day-to-Day Usage
+### 📆 Day-to-Day Usage (standard install)
 
 After the initial install:
 
@@ -312,3 +321,146 @@ After the initial install:
   ```
 
 As long as `run.sh` is running and your SMTP + Immich config is valid, new favorites will keep flowing automatically from Immich to your Pix-Star frames.
+
+---
+
+## 🐧 TrueNAS SCALE Install (via Docker)
+
+TrueNAS SCALE doesn’t let you install Python + pip directly on the host, so the easiest way to run this service is as a **Docker container**.
+
+The Docker image:
+
+- Already includes Python and all dependencies
+- Does **not** include your secrets
+- Reads config files from a host folder that you mount into the container at `/config`
+
+> ✅ Before you start:  
+> Make sure you have **already created** `.env` and `pixstar_mapping.json` on your computer by following the steps above.
+
+---
+
+### 1️⃣ Create a config folder on TrueNAS
+
+1. Open the **TrueNAS web UI**.
+  
+2. Go to **Storage → Datasets**.
+  
+3. Create (or pick) a dataset for configs, for example:
+  
+  - `YourPool/immich-pixstar-sync-config`
+4. Note the **path**. It will look like:
+  
+  ```text
+  /mnt/YourPool/immich-pixstar-sync-config
+  ```
+  
+
+### 2️⃣ Put `.env` and `pixstar_mapping.json` into that folder
+
+You have two easy options:
+
+#### Option A – Use an SMB share (recommended)
+
+1. In TrueNAS, go to **Shares → Windows Shares (SMB)**.
+  
+2. Create a new SMB share pointing to:
+  
+  `/mnt/YourPool/immich-pixstar-sync-config`
+  
+3. From your **Mac/PC**, connect to the share (e.g. `smb://truenas/immich-pixstar-sync-config`).
+  
+4. Copy your `.env` and `pixstar_mapping.json` files into that folder.
+  
+
+You should now see on TrueNAS:
+
+`/mnt/YourPool/immich-pixstar-sync-config/.env /mnt/YourPool/immich-pixstar-sync-config/pixstar_mapping.json`
+
+#### Option B – Use the TrueNAS Shell (if you like terminals)
+
+From your computer, in the same folder as `.env` and `pixstar_mapping.json`:
+
+`scp .env pixstar_mapping.json root@truenas:/mnt/YourPool/immich-pixstar-sync-config/`
+
+(Replace `truenas` with your box’s hostname or IP, and `YourPool` with your pool name.)
+
+---
+
+### 3️⃣ Launch the Docker image in TrueNAS SCALE
+
+Now wire the image to that config folder.
+
+1. In the TrueNAS web UI, go to **Apps → Launch Docker Image**.
+  
+2. **Application Name**:  
+  `immich-pixstar-sync` (or anything you like, all lowercase).
+  
+3. **Image → Repository**:
+  
+  `sparklysparkspark/immich-pixstar-sync`
+  
+4. **Tag**:
+  
+  `latest`
+  
+5. **Networking**:  
+  Leave defaults (it only needs outbound HTTP/HTTPS + SMTP).
+  
+6. **Storage → Add Host Path Volume**:
+  
+  - **Type**: Host Path
+    
+  - **Host Path**:
+    
+    `/mnt/YourPool/immich-pixstar-sync-config`
+    
+  - **Mount Path** (inside container):
+    
+    `/config`
+    
+7. **Environment Variables** → Add:
+  
+  - Name: `PIXSTAR_MAPPING_PATH`  
+    Value: `/config/pixstar_mapping.json`
+    
+  - Name: `STATE_PATH`  
+    Value: `/config/pixstar_sync_state.json`
+    
+
+> ℹ️ All the other settings (Immich URL, admin API key, SMTP, poll interval, etc.) are read from `/config/.env`, which is the `.env` file you created earlier.
+
+8. **Restart Policy**:  
+  Set to **Always** (recommended) so it comes back after reboots.
+  
+9. Click **Save / Deploy**.
+  
+
+---
+
+### 4️⃣ Check that it’s working
+
+1. Go to **Apps → Installed Apps**.
+  
+2. Click your `immich-pixstar-sync` app.
+  
+3. Open the **Logs**.
+  
+4. You should see messages like:
+  
+  - syncing favorites
+    
+  - sending images
+    
+  - any errors talking to Immich / SMTP
+    
+
+The app will:
+
+- Read config from `/config/.env` and `/config/pixstar_mapping.json`
+  
+- Write its state file to:
+  
+  `/mnt/YourPool/immich-pixstar-sync-config/pixstar_sync_state.json`
+  
+
+As long as the app is running and your config is correct, any **new favorites** in Immich will be emailed to the right Pix-Star frame(s).
