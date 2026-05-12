@@ -15,6 +15,28 @@ So favorites stay per-user: what John likes goes to John’s frame(s), what Jane
 
 ---
 
+## ⚡ Quick Start (for experienced users)
+
+If you're comfortable with Python, Docker, and Immich API keys, here's the short version. Skip to the detailed sections below if you want hand-holding.
+
+1. **Fork this repo into a PRIVATE repo** (or just clone it somewhere private — it will hold secrets).
+2. **Copy the example configs and fill them in:**
+   ```bash
+   cp .env.example .env
+   cp pixstar_mapping.example.json pixstar_mapping.json
+   ```
+   - `.env`: Immich base URL (must end `/api`), admin API key, SMTP creds.
+   - `pixstar_mapping.json`: per-user Immich email + per-user API key + Pix-Star frame email(s).
+   - Required API key scopes: admin key needs `asset.read`, `asset.download`, `user.read`; per-user keys need `asset.read`, `asset.download`.
+3. **Run it:**
+   - **Linux/NAS with Python:** `python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt && ./run.sh`
+   - **Docker:** `docker run -d --restart=always -v /your/config/dir:/config -e PIXSTAR_MAPPING_PATH=/config/pixstar_mapping.json -e STATE_PATH=/config/pixstar_sync_state.json sparklysparkspark/immich-pixstar-sync:latest`
+4. **Resend all favorites** (e.g. after a frame reset): `python main.py --resend-all --all-users`
+
+Logs go to `immich-pixstar.log`. Stop with `./stop.sh`.
+
+---
+
 ## 🔧 Installation Modes
 
 You can run this service in two main ways:
@@ -88,12 +110,19 @@ From this point on, you only work with **your private copy**.
 
 ### 2️⃣ Edit configuration files in your private repo
 
-You only need to edit:
+This repo ships **example** config files, not real ones. Copy them first:
+
+```bash
+cp .env.example .env
+cp pixstar_mapping.example.json pixstar_mapping.json
+```
+
+Then edit:
 
 * `.env`
 * `pixstar_mapping.json`
 
-Commit these changes to your private repo **before** cloning it onto your NAS or using Docker.
+Both filenames are listed in `.gitignore`, so your real secrets stay local. Commit these to your **private** repo **before** cloning it onto your NAS or using Docker.
 
 ---
 
