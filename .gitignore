@@ -1,4 +1,6 @@
 # Local secrets
+.env
+pixstar_mapping.json
 pixstar_sync_state.json
 
 # Byte-compiled / optimized / DLL files
