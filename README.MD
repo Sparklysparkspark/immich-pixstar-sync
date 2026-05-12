@@ -11,7 +11,7 @@ So favorites stay per-user: what John likes goes to John’s frame(s), what Jane
 
 ---
 
-### ✅ Tested Immich version: **v2.3.1**
+### ✅ Tested Immich version: **v2.7.5**
 
 ---
 
